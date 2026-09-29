@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../widgets/service_card.dart';
 import '../widgets/barber_card.dart';
@@ -8,6 +9,9 @@ import '../widgets/step_progress.dart';
 import '../widgets/summary_card.dart';
 import '../../domain/entities/service.dart';
 import '../../domain/entities/barber.dart';
+import '../../domain/entities/booking.dart';
+import '../../data/barbers_data.dart';
+import '../../../../data/providers/local_storage.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -17,56 +21,87 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
+  final _storage = LocalStorage();
+
   int _selectedService = 0;
   int _selectedBarber = 0;
   int _selectedDate = 0;
-  String _selectedTime = '10:30';
+  String? _selectedTime;
+  bool _loadingSlots = true;
+  Set<String> _bookedSlots = {};
 
   final List<Service> services = const [
-    Service(
-      name: 'Taglio Classico',
-      description: 'Capelli + styling',
-      duration: 30,
-      price: 22.0,
-      icon: Icons.content_cut_rounded,
-    ),
-    Service(
-      name: 'Barba Premium',
-      description: 'Rasatura + olio',
-      duration: 25,
-      price: 18.0,
-      icon: Icons.face_retouching_natural_rounded,
-    ),
-    Service(
-      name: "Combo Dona's",
-      description: 'Taglio + barba',
-      duration: 55,
-      price: 35.0,
-      icon: Icons.auto_awesome_rounded,
-    ),
+    Service(name: 'Taglio Classico', description: 'Capelli + styling',
+        duration: 30, price: 22.0, icon: Icons.content_cut_rounded),
+    Service(name: 'Barba Premium', description: 'Rasatura + olio',
+        duration: 25, price: 18.0, icon: Icons.face_retouching_natural_rounded),
+    Service(name: "Combo Dona's", description: 'Taglio + barba',
+        duration: 55, price: 35.0, icon: Icons.auto_awesome_rounded),
   ];
 
-  final List<Barber> barbers = const [
-    Barber(name: 'Primo disponibile', role: 'Qualsiasi', rating: 5.0, available: true, initials: 'DA'),
-    Barber(name: 'Marco', role: 'Senior Barber', rating: 4.9, available: true, initials: 'MR'),
-    Barber(name: 'Luca', role: 'Barber', rating: 4.8, available: false, initials: 'LC'),
-    Barber(name: 'Dona', role: 'Master Barber', rating: 5.0, available: true, initials: 'DN'),
-  ];
+  final List<DateTime> dates = List.generate(
+    14,
+    (i) => DateTime.now().add(Duration(days: i)),
+  );
 
-  final List<Map<String, String>> dates = const [
-    {'day': 'Lun', 'date': '12'},
-    {'day': 'Mar', 'date': '13'},
-    {'day': 'Mer', 'date': '14'},
-    {'day': 'Gio', 'date': '15'},
-    {'day': 'Ven', 'date': '16'},
-    {'day': 'Sab', 'date': '17'},
-    {'day': 'Dom', 'date': '18'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadSlots();
+  }
 
-  final List<String> times = const [
-    '09:00', '09:45', '10:30', '11:15', '12:00',
-    '14:00', '14:45', '15:30', '16:15', '17:00',
-  ];
+  Barber get _barber => demoBarbers[_selectedBarber];
+  DateTime get _date => dates[_selectedDate];
+
+  /// Barbieri che lavorano nel giorno selezionato
+  List<Barber> get _availableBarbers =>
+      demoBarbers.where((b) => b.worksOn(_date)).toList();
+
+  List<String> get _allSlotsForDay {
+    if (_barber.isAlwaysAvailable) {
+      final set = <String>{};
+      for (final b in _availableBarbers.where((b) => !b.isAlwaysAvailable)) {
+        set.addAll(b.slotsFor(_date));
+      }
+      final list = set.toList()..sort();
+      return list;
+    }
+    return _barber.slotsFor(_date);
+  }
+
+  Future<void> _loadSlots() async {
+    setState(() => _loadingSlots = true);
+    final booked = await _storage.bookedSlots(_barber.name, _date);
+    if (!mounted) return;
+    setState(() {
+      _bookedSlots = booked;
+      _loadingSlots = false;
+      if (_selectedTime != null && booked.contains(_selectedTime)) {
+        _selectedTime = null;
+      }
+    });
+  }
+
+  Future<void> _confirm() async {
+    if (_selectedTime == null) return;
+    final parts = _selectedTime!.split(':');
+    final dateTime = DateTime(
+      _date.year, _date.month, _date.day,
+      int.parse(parts[0]), int.parse(parts[1]),
+    );
+    final booking = Booking(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      serviceName: services[_selectedService].name,
+      price: services[_selectedService].price,
+      barberName: _barber.name,
+      dateTime: dateTime,
+      status: 'confirmed',
+    );
+    await _storage.saveBooking(booking);
+    await NotificationService.scheduleBookingReminder(booking);
+    if (!mounted) return;
+    context.push('/booking/success', extra: booking);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,29 +121,49 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 28),
                     _buildSectionTitle('Servizio'),
                     const SizedBox(height: 12),
-                    ...List.generate(services.length, (index) {
-                      return ServiceCard(
-                        service: services[index],
-                        selected: _selectedService == index,
-                        onTap: () => setState(() => _selectedService = index),
-                      );
-                    }),
+                    ...List.generate(services.length, (i) => ServiceCard(
+                      service: services[i],
+                      selected: _selectedService == i,
+                      onTap: () => setState(() => _selectedService = i),
+                    )),
                     const SizedBox(height: 28),
                     _buildSectionTitle('Barbiere'),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      height: 116,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: barbers.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, index) => BarberCard(
-                          barber: barbers[index],
-                          selected: _selectedBarber == index,
-                          onTap: () => setState(() => _selectedBarber = index),
+                    if (_availableBarbers.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Nessun barbiere disponibile in questa data',
+                            style: TextStyle(color: AppColors.textSecondary)),
+                      )
+                    else
+                      SizedBox(
+                        height: 116,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: demoBarbers.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          itemBuilder: (context, i) {
+                            final b = demoBarbers[i];
+                            final enabled = b.worksOn(_date);
+                            return Opacity(
+                              opacity: enabled ? 1 : 0.35,
+                              child: BarberCard(
+                                barber: b,
+                                selected: _selectedBarber == i,
+                                onTap: enabled
+                                    ? () {
+                                        setState(() {
+                                          _selectedBarber = i;
+                                          _selectedTime = null;
+                                        });
+                                        _loadSlots();
+                                      }
+                                    : () {},
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
                     const SizedBox(height: 28),
                     _buildSectionTitle('Data'),
                     const SizedBox(height: 12),
@@ -118,34 +173,32 @@ class _BookingScreenState extends State<BookingScreen> {
                         scrollDirection: Axis.horizontal,
                         itemCount: dates.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, index) => DateCard(
-                          day: dates[index]['day']!,
-                          date: dates[index]['date']!,
-                          selected: _selectedDate == index,
-                          onTap: () => setState(() => _selectedDate = index),
+                        itemBuilder: (context, i) => DateCard(
+                          day: _weekdayLabel(dates[i].weekday),
+                          date: dates[i].day.toString(),
+                          selected: _selectedDate == i,
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = i;
+                              _selectedTime = null;
+                            });
+                            _loadSlots();
+                          },
                         ),
                       ),
                     ),
                     const SizedBox(height: 28),
                     _buildSectionTitle('Ora'),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: times.map((time) => TimeChip(
-                        time: time,
-                        selected: _selectedTime == time,
-                        onTap: () => setState(() => _selectedTime = time),
-                      )).toList(),
-                    ),
+                    _buildTimeSlots(),
                     const SizedBox(height: 28),
                     _buildSectionTitle('Riepilogo'),
                     const SizedBox(height: 12),
                     SummaryCard(
                       service: services[_selectedService],
-                      barber: barbers[_selectedBarber],
-                      date: '${dates[_selectedDate]['day']} ${dates[_selectedDate]['date']}',
-                      time: _selectedTime,
+                      barber: _barber,
+                      date: '${_weekdayLabel(_date.weekday)} ${_date.day}',
+                      time: _selectedTime ?? '--:--',
                     ),
                   ],
                 ),
@@ -154,7 +207,34 @@ class _BookingScreenState extends State<BookingScreen> {
           ],
         ),
       ),
-      bottomSheet: _buildBottomBar(services[_selectedService]),
+      bottomSheet: _buildBottomBar(),
+    );
+  }
+
+  Widget _buildTimeSlots() {
+    if (_loadingSlots) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator(color: AppColors.accent)),
+      );
+    }
+    final slots = _allSlotsForDay;
+    if (slots.isEmpty) {
+      return const Text('Nessun orario disponibile',
+          style: TextStyle(color: AppColors.textSecondary));
+    }
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: slots.map((t) {
+        final booked = _bookedSlots.contains(t);
+        return TimeChip(
+          time: t,
+          selected: _selectedTime == t,
+          disabled: booked,
+          onTap: booked ? () {} : () => setState(() => _selectedTime = t),
+        );
+      }).toList(),
     );
   }
 
@@ -163,18 +243,12 @@ class _BookingScreenState extends State<BookingScreen> {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Row(
         children: [
-          _IconButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () {}),
+          _IconButton(icon: Icons.arrow_back_ios_new_rounded, onTap: () => context.pop()),
           const SizedBox(width: 16),
           const Expanded(
-            child: Text(
-              'Prenota',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
-              ),
-            ),
+            child: Text('Prenota',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary, letterSpacing: -0.5)),
           ),
           _IconButton(icon: Icons.notifications_none_rounded, onTap: () {}),
         ],
@@ -182,25 +256,18 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textPrimary,
-        letterSpacing: -0.3,
-      ),
-    );
-  }
+  Widget _buildSectionTitle(String t) => Text(t,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+          color: AppColors.textPrimary, letterSpacing: -0.3));
 
-  Widget _buildBottomBar(Service service) {
+  Widget _buildBottomBar() {
+    final enabled = _selectedTime != null;
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
         decoration: BoxDecoration(
-          color: AppColors.surface.withOpacity(0.94),
+          color: AppColors.surface.withOpacity(0.96),
           border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
         ),
         child: Row(
@@ -209,37 +276,29 @@ class _BookingScreenState extends State<BookingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'Totale',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                ),
-                Text(
-                  '€${service.price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+                const Text('Totale',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                Text('€${services[_selectedService].price.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 20,
+                        fontWeight: FontWeight.w900, color: AppColors.textPrimary)),
               ],
             ),
             const SizedBox(width: 16),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: enabled ? _confirm : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.black,
+                  foregroundColor: AppColors.onAccent,
+                  disabledBackgroundColor: AppColors.cardElevated,
+                  disabledForegroundColor: AppColors.textMuted,
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
+                      borderRadius: BorderRadius.circular(18)),
                 ),
-                child: const Text(
-                  'Conferma prenotazione',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
+                child: const Text('Conferma prenotazione',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
               ),
             ),
           ],
@@ -247,28 +306,27 @@ class _BookingScreenState extends State<BookingScreen> {
       ),
     );
   }
+
+  String _weekdayLabel(int w) =>
+      const ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'][w - 1];
 }
 
 class _IconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-
   const _IconButton({required this.icon, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.10)),
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.glassFill,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: Icon(icon, size: 20, color: AppColors.textPrimary),
         ),
-        child: Icon(icon, size: 20, color: AppColors.textPrimary),
-      ),
-    );
-  }
+      );
 }
