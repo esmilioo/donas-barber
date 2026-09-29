@@ -11,7 +11,9 @@
   "ios": {
     "path": "ios",
     "bundleId": "com.example.donasBarber",
-    "configuration": "Release"
+    "configuration": "Release",
+    "use_signing": false,
+    "develompent_team": "YYX2P3XVJ7"
   },
   "flutter": {
     "version": "3.47.5",
