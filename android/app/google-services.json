@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "775665119047",
+    "project_id": "donas-barber-app",
+    "storage_bucket": "donas-barber-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:775665119047:android:2d710a51ad399a6a546662",
+        "android_client_info": {
+          "package_name": "com.example.donas_barber"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "775665119047-rhvntdvvf338q1o9j93luigr6cfk8s8j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCU5n5WNSRPH7G7wQJuRF_jikAD5CCYf4Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "775665119047-rhvntdvvf338q1o9j93luigr6cfk8s8j.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "775665119047-sradb7ho36r2a9283dm6sa6q7ijjme0h.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.donasBarber"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -9,12 +9,13 @@ class AppTheme {
       fontFamily: 'SF Pro Display',
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
-        secondary: AppColors.accent,
+        secondary: AppColors.accentRose,
         surface: AppColors.surface,
-        onPrimary: Colors.black,
+        onPrimary: AppColors.onAccent,
         onSurface: AppColors.textPrimary,
       ),
       useMaterial3: true,
+      dividerColor: AppColors.border,
     );
   }
 }

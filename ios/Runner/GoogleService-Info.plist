@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>775665119047-sradb7ho36r2a9283dm6sa6q7ijjme0h.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.775665119047-sradb7ho36r2a9283dm6sa6q7ijjme0h</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBfl48hPN02QkVWx-Nd2XDaaEUxNxp71vQ</string>
+	<key>GCM_SENDER_ID</key>
+	<string>775665119047</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.donasBarber</string>
+	<key>PROJECT_ID</key>
+	<string>donas-barber-app</string>
+	<key>STORAGE_BUCKET</key>
+	<string>donas-barber-app.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:775665119047:ios:9d50e93e1bfa316d546662</string>
+</dict>
+</plist>
