@@ -45,5 +45,19 @@
 	<true/>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Ricevi promemoria per i tuoi appuntamenti.</string>
+	
+	<key>GIDClientID</key>
+	<string>775665119047-sradb7ho36r2a9283dm6sa6q7ijjme0h.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.775665119047-sradb7ho36r2a9283dm6sa6q7ijjme0h	</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
